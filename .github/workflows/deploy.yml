@@ -16,6 +16,9 @@ concurrency:
 
 env:
   BUILD_PATH: "." 
+  PUBLIC_SOCIAL_GITHUB: "https://github.com/JVBotelho"
+  PUBLIC_SOCIAL_LINKEDIN: "https://www.linkedin.com/in/joao-victor-botelho/"
+  PUBLIC_SOCIAL_EMAIL: "contact@glitchedcat.com" 
 
 jobs:
   build:
