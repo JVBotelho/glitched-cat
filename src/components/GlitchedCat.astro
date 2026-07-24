@@ -1,0 +1,70 @@
+---
+interface Props {
+  size?: "small" | "large";
+}
+const { size = "large" } = Astro.props;
+
+const fontSize = size === "small" ? "1.25rem" : "44px";
+const marginLeft = size === "small" ? "4px" : "6px";
+const idSuffix = Math.random().toString(36).substring(2, 9); // unique IDs for multiple instances
+const gtxtId = `gtxt-${idSuffix}`;
+const l1Id = `l1-${idSuffix}`;
+const l2Id = `l2-${idSuffix}`;
+const curId = `cur-${idSuffix}`;
+---
+
+<div id={gtxtId} style={`position:relative;font-family:var(--font-firacode);font-size:${fontSize};font-weight:700;letter-spacing:1px;`} class="glitch-text text-foreground shrink-0">
+  <span id={l1Id} style="position:absolute;left:0;top:0;color:#00ffff;opacity:0;">Glitched_Cat</span>
+  <span id={l2Id} style="position:absolute;left:0;top:0;color:#ff00ff;opacity:0;">Glitched_Cat</span>
+  <span style="position:relative;">Glitched_Cat<span id={curId} style={`display:inline-block;width:0.55em;height:1em;background:var(--accent);vertical-align:-0.12em;margin-left:${marginLeft};`}></span></span>
+</div>
+
+<script is:inline define:vars={{ gtxtId, l1Id, l2Id, curId }}>
+  document.addEventListener("astro:page-load", () => {
+    const l1 = document.getElementById(l1Id);
+    const l2 = document.getElementById(l2Id);
+    const g = document.getElementById(gtxtId);
+    const cur = document.getElementById(curId);
+    
+    if (!g || !l1 || !l2 || !cur) return;
+    
+    const curTimer = setInterval(() => {
+      cur.style.opacity = cur.style.opacity === '0' ? '1' : '0';
+    }, 530);
+    
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    
+    function burst() {
+      if (reduce) return;
+      let n = 0;
+      const t = setInterval(() => {
+        n++;
+        const dx = () => (Math.random() * 8 - 4) + 'px';
+        l1.style.opacity = '0.8'; 
+        l2.style.opacity = '0.8';
+        l1.style.transform = `translate(${dx()}, ${Math.random() * 4 - 2}px)`;
+        l2.style.transform = `translate(${dx()}, ${Math.random() * 4 - 2}px)`;
+        
+        const top = Math.floor(Math.random() * 60);
+        const bot = Math.min(top + Math.floor(Math.random() * 30) + 10, 100);
+        g.style.clipPath = Math.random() > 0.5 ? `inset(${top}% 0 ${100 - bot}% 0)` : 'none';
+        
+        if (n > 6) {
+          clearInterval(t);
+          l1.style.opacity = '0';
+          l2.style.opacity = '0';
+          g.style.clipPath = 'none';
+          g.style.transform = 'none';
+        }
+      }, 50);
+    }
+    
+    const burstTimer = setInterval(burst, 2800 + (Math.random() * 500)); // offset multiple glitch intervals
+    setTimeout(burst, 600);
+    
+    document.addEventListener("astro:before-swap", () => {
+      clearInterval(curTimer);
+      clearInterval(burstTimer);
+    }, { once: true });
+  });
+</script>
