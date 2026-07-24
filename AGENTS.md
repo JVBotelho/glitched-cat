@@ -20,3 +20,10 @@ Consult these guides before working on related tasks:
 - [Adding or managing content](https://docs.astro.build/en/guides/content-collections/)
 - [Adding styles or using Tailwind](https://docs.astro.build/en/guides/styling/)
 - [Supporting multiple languages](https://docs.astro.build/en/guides/internationalization/)
+
+## Security / Gitleaks
+
+When generating content or code examples that include intentional fake credentials, API keys, or hashes (e.g., for AppSec/Red Team blog posts), you **must** append a Gitleaks ignore comment on the same line to prevent CI pipeline failures.
+
+- In code blocks, use the language's native comment syntax: `# gitleaks:allow` or `// gitleaks:allow`
+- In plain markdown text, use an HTML comment: `<!-- gitleaks:allow -->`
