@@ -1,0 +1,580 @@
+---
+---
+
+<!-- FAB (Floating Action Button) -->
+<button
+  id="rsvp-fab"
+  class="fixed end-4 bottom-24 md:end-8 md:bottom-28 z-40 hidden items-center justify-center rounded-full bg-accent p-3 text-background shadow-lg hover:scale-110 motion-reduce:transition-none transition-transform min-h-[48px] min-w-[48px]"
+  aria-label="Open speed reader"
+  aria-haspopup="dialog"
+  aria-expanded="false"
+>
+  <svg
+    class="size-6"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+  </svg>
+</button>
+
+<!-- Popover -->
+<div
+  id="rsvp-popover"
+  class="fixed end-4 bottom-40 md:end-8 md:bottom-44 z-40 w-64 sm:w-72 rounded-xl border border-border/25 bg-background shadow-xl origin-bottom-right transition-all duration-200 ease-out scale-95 opacity-0 hidden flex-col"
+  role="dialog"
+  aria-labelledby="rsvp-popover-title"
+>
+  <div class="flex items-center justify-between p-3 sm:p-4 border-b border-border/20">
+    <h2 id="rsvp-popover-title" class="font-bold text-sm sm:text-base">Speed Reader</h2>
+    <button
+      id="rsvp-popover-close"
+      class="rounded-full p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-muted/20 transition-colors"
+      aria-label="Close popover"
+    >
+      <svg class="size-4 sm:size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 6 6 18"></path>
+        <path d="m6 6 12 12"></path>
+      </svg>
+    </button>
+  </div>
+  
+  <div class="p-4 sm:p-5 flex flex-col gap-5">
+    <div>
+      <div class="flex items-center justify-between mb-2">
+        <label for="rsvp-popover-wpm" class="text-sm font-medium text-foreground/70">WPM</label>
+        <span id="rsvp-popover-wpm-display" class="text-sm font-mono font-medium text-accent">300</span>
+      </div>
+      <input
+        type="range"
+        id="rsvp-popover-wpm"
+        min="200"
+        max="700"
+        step="10"
+        value="300"
+        class="w-full accent-accent min-h-[44px] cursor-pointer"
+      />
+    </div>
+    
+    <div class="text-sm text-foreground/70 bg-muted/10 p-3 rounded-lg border border-border/20 text-center">
+      Estimated time: <br/>
+      <span id="rsvp-popover-eta" class="font-bold text-foreground">~0 min</span>
+    </div>
+    
+    <button
+      id="rsvp-popover-start"
+      class="w-full rounded-lg bg-accent py-3 min-h-[44px] font-bold text-background hover:opacity-90 transition-opacity"
+    >
+      Start reading
+    </button>
+  </div>
+</div>
+
+<!-- RSVP Reading Overlay -->
+<div
+  id="rsvp-overlay"
+  class="fixed inset-0 z-50 hidden flex-col bg-background/95 backdrop-blur-sm transition-opacity duration-300 opacity-0"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="rsvp-title"
+>
+  <!-- Header -->
+  <div class="flex items-center justify-between p-4 border-b border-border/20">
+    <h2 id="rsvp-title" class="text-lg font-bold">Speed Reader</h2>
+    <button
+      id="rsvp-close"
+      class="rounded-full p-2 hover:bg-muted/20 transition-colors"
+      aria-label="Close speed reader"
+    >
+      <svg
+        class="size-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M18 6 6 18"></path>
+        <path d="m6 6 12 12"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Main Display Area -->
+  <div class="flex flex-1 items-center justify-center p-4">
+    <div class="relative grid grid-cols-[1fr_auto_1fr] items-center w-full max-w-3xl font-mono text-4xl sm:text-5xl md:text-6xl whitespace-nowrap">
+      <div id="rsvp-prefix" class="text-right text-foreground"></div>
+      <div id="rsvp-orp" class="text-accent font-bold text-center"></div>
+      <div id="rsvp-suffix" class="text-left text-foreground"></div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="border-t border-border/20 bg-muted/5 p-4 sm:p-6">
+    <div class="mx-auto max-w-3xl space-y-4">
+      <!-- Progress Bar -->
+      <div class="flex items-center gap-4">
+        <span id="rsvp-counter" class="w-20 text-right text-sm font-mono text-foreground/70">0 / 0</span>
+        <div 
+          id="rsvp-progress-container"
+          class="relative h-3 flex-1 cursor-pointer rounded-full bg-border/30 overflow-hidden"
+          role="slider"
+          aria-label="Reading progress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+          tabindex="0"
+        >
+          <div id="rsvp-progress-bar" class="absolute left-0 top-0 h-full w-0 bg-accent transition-all duration-150 ease-out pointer-events-none"></div>
+        </div>
+      </div>
+
+      <!-- Actions & Settings -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <button
+            id="rsvp-back"
+            class="flex items-center gap-1 rounded-lg border border-border/25 bg-muted/10 px-4 py-2 hover:bg-muted/20 transition-colors"
+            title="Back 10 words (Left Arrow)"
+            aria-label="Back 10 words"
+          >
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 19-7-7 7-7"/>
+              <path d="M19 19 12 12l7-7"/>
+            </svg>
+            <span class="text-sm font-medium">10</span>
+          </button>
+          <button
+            id="rsvp-play-pause"
+            class="flex w-24 items-center justify-center gap-1 rounded-lg bg-accent px-4 py-2 text-background hover:opacity-90 transition-opacity font-bold"
+            title="Play/Pause (Space)"
+            aria-label="Play or Pause"
+          >
+            <span id="rsvp-play-icon">
+              <svg class="size-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </span>
+            <span id="rsvp-pause-icon" class="hidden">
+              <svg class="size-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 4h4v16H6zm8 0h4v16h-4z"/>
+              </svg>
+            </span>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <label for="rsvp-overlay-wpm" class="text-sm font-medium text-foreground/70">WPM</label>
+          <input
+            type="range"
+            id="rsvp-overlay-wpm"
+            min="200"
+            max="700"
+            step="10"
+            value="300"
+            class="w-32 accent-accent min-h-[44px] cursor-pointer"
+          />
+          <span id="rsvp-overlay-wpm-display" class="w-12 text-sm font-mono font-medium">300</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { tokenize, getOrpIndex, createRsvpPlayer, type RsvpPlayer } from "@/utils/rsvp";
+
+  let player: RsvpPlayer | null = null;
+  let words: string[] = [];
+
+  // DOM Elements
+  let els: Record<string, HTMLElement> = {};
+
+  function initElements() {
+    els = {
+      fab: document.getElementById("rsvp-fab")!,
+      
+      popover: document.getElementById("rsvp-popover")!,
+      popoverCloseBtn: document.getElementById("rsvp-popover-close")!,
+      popoverWpmInput: document.getElementById("rsvp-popover-wpm")!,
+      popoverWpmDisplay: document.getElementById("rsvp-popover-wpm-display")!,
+      popoverEta: document.getElementById("rsvp-popover-eta")!,
+      popoverStartBtn: document.getElementById("rsvp-popover-start")!,
+      
+      overlay: document.getElementById("rsvp-overlay")!,
+      overlayCloseBtn: document.getElementById("rsvp-close")!,
+      prefix: document.getElementById("rsvp-prefix")!,
+      orp: document.getElementById("rsvp-orp")!,
+      suffix: document.getElementById("rsvp-suffix")!,
+      counter: document.getElementById("rsvp-counter")!,
+      progressContainer: document.getElementById("rsvp-progress-container")!,
+      progressBar: document.getElementById("rsvp-progress-bar")!,
+      playPauseBtn: document.getElementById("rsvp-play-pause")!,
+      playIcon: document.getElementById("rsvp-play-icon")!,
+      pauseIcon: document.getElementById("rsvp-pause-icon")!,
+      backBtn: document.getElementById("rsvp-back")!,
+      overlayWpmInput: document.getElementById("rsvp-overlay-wpm")!,
+      overlayWpmDisplay: document.getElementById("rsvp-overlay-wpm-display")!
+    };
+  }
+
+  function getStoredWpm(): number {
+    const saved = localStorage.getItem("rsvp-wpm");
+    return saved ? parseInt(saved, 10) : 300;
+  }
+
+  function setStoredWpm(wpm: number) {
+    localStorage.setItem("rsvp-wpm", wpm.toString());
+  }
+
+  // Umami is served through the first-party proxy, but can still be absent
+  // (blockers, worker outage), so never let analytics break the widget
+  function trackEvent(event: string, data?: Record<string, string | number>) {
+    const umami = (window as unknown as {
+      umami?: { track: (e: string, d?: Record<string, string | number>) => void };
+    }).umami;
+    umami?.track(event, data);
+  }
+
+  function extractText(): string {
+    const article = document.getElementById("article");
+    if (!article) return "";
+
+    const clone = article.cloneNode(true) as HTMLElement;
+    const excludeSelectors = ["pre", ".heading-link", ".copy-code", "figcaption"];
+    clone.querySelectorAll(excludeSelectors.join(", ")).forEach(el => el.remove());
+    clone.querySelectorAll("[hidden], .hidden").forEach(el => el.remove());
+
+    return clone.innerText || clone.textContent || "";
+  }
+
+  function renderWord(word: string) {
+    if (!word) {
+      els.prefix.textContent = "";
+      els.orp.textContent = "";
+      els.suffix.textContent = "";
+      return;
+    }
+    
+    const orpIndex = getOrpIndex(word);
+    els.prefix.textContent = word.slice(0, orpIndex);
+    els.orp.textContent = word[orpIndex] || "";
+    els.suffix.textContent = word.slice(orpIndex + 1);
+  }
+
+  function updateStateUI(state: { isPlaying: boolean; index: number; total: number }) {
+    if (state.isPlaying) {
+      els.playIcon.classList.add("hidden");
+      els.pauseIcon.classList.remove("hidden");
+    } else {
+      els.playIcon.classList.remove("hidden");
+      els.pauseIcon.classList.add("hidden");
+    }
+
+    const displayIndex = Math.min(state.index + 1, state.total);
+    els.counter.textContent = `${displayIndex} / ${state.total}`;
+    
+    const percentage = state.total > 0 ? (displayIndex / state.total) * 100 : 0;
+    els.progressBar.style.width = `${percentage}%`;
+    els.progressContainer.setAttribute("aria-valuenow", percentage.toString());
+  }
+
+  // --- Popover Logic ---
+
+  function calculateEta(wpm: number) {
+    if (words.length === 0) return "~0 min";
+    const minutes = Math.ceil(words.length / wpm);
+    return `~${minutes} min at ${wpm} WPM`;
+  }
+
+  function syncPopoverWpmUI(wpm: number) {
+    (els.popoverWpmInput as HTMLInputElement).value = wpm.toString();
+    els.popoverWpmDisplay.textContent = wpm.toString();
+    els.popoverEta.textContent = calculateEta(wpm);
+  }
+
+  function onPopoverWpmChange(e: Event) {
+    const wpm = parseInt((e.target as HTMLInputElement).value, 10);
+    syncPopoverWpmUI(wpm);
+    setStoredWpm(wpm);
+  }
+
+  function handleOutsideClick(e: Event) {
+    if (els.popover.classList.contains("hidden")) return;
+    
+    const target = e.target as Node;
+    if (!els.popover.contains(target) && !els.fab.contains(target)) {
+      closePopover();
+    }
+  }
+
+  function togglePopover() {
+    if (els.popover.classList.contains("hidden")) {
+      // Only intentional FAB clicks count — the auto-open intro is not interest
+      trackEvent("rsvp-popover-open");
+      openPopover();
+    } else {
+      closePopover();
+    }
+  }
+
+  function openPopover(options: { focus?: boolean } = {}) {
+    const article = document.getElementById("article");
+    if (!article || !els.popover) return;
+    
+    const rawText = extractText();
+    words = tokenize(rawText);
+    
+    const wpm = getStoredWpm();
+    syncPopoverWpmUI(wpm);
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    
+    els.popover.classList.remove("hidden");
+    els.fab.setAttribute("aria-expanded", "true");
+    
+    requestAnimationFrame(() => {
+      if (!prefersReducedMotion) {
+        els.popover.classList.remove("opacity-0", "scale-95");
+        els.popover.classList.add("opacity-100", "scale-100");
+      } else {
+        els.popover.classList.remove("opacity-0", "scale-95", "transition-all", "duration-200");
+        els.popover.classList.add("opacity-100", "scale-100");
+      }
+    });
+
+    if (options.focus !== false) {
+      els.popoverStartBtn.focus();
+    }
+    document.addEventListener("keydown", handlePopoverKeydown);
+    document.addEventListener("pointerdown", handleOutsideClick);
+  }
+
+  function closePopover() {
+    if (!els.popover || els.popover.classList.contains("hidden")) return;
+    
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.removeEventListener("keydown", handlePopoverKeydown);
+    document.removeEventListener("pointerdown", handleOutsideClick);
+    
+    els.fab.setAttribute("aria-expanded", "false");
+
+    if (!prefersReducedMotion) {
+      els.popover.classList.remove("opacity-100", "scale-100");
+      els.popover.classList.add("opacity-0", "scale-95");
+      
+      setTimeout(() => {
+        els.popover.classList.add("hidden");
+      }, 200);
+    } else {
+      els.popover.classList.remove("opacity-100", "scale-100");
+      els.popover.classList.add("opacity-0", "scale-95");
+      els.popover.classList.add("hidden");
+    }
+
+    els.fab.focus();
+  }
+
+  function handlePopoverKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closePopover();
+    }
+  }
+
+  // --- Overlay Logic ---
+
+  function syncOverlayWpmUI(wpm: number) {
+    (els.overlayWpmInput as HTMLInputElement).value = wpm.toString();
+    els.overlayWpmDisplay.textContent = wpm.toString();
+  }
+
+  function onOverlayWpmChange(e: Event) {
+    const wpm = parseInt((e.target as HTMLInputElement).value, 10);
+    syncOverlayWpmUI(wpm);
+    setStoredWpm(wpm);
+    if (player) {
+      player.setWpm(wpm);
+    }
+  }
+
+  function openOverlayAndPlay() {
+    closePopover(); 
+    
+    // Hide FAB while overlay is open
+    els.fab.classList.add("hidden");
+    els.fab.classList.remove("flex");
+
+    const wpm = getStoredWpm();
+    syncOverlayWpmUI(wpm);
+    trackEvent("rsvp-start", { wpm, words: words.length });
+
+    const onComplete = () => trackEvent("rsvp-complete", { wpm, words: words.length });
+
+    if (!player) {
+      player = createRsvpPlayer(words, {
+        wpm: wpm,
+        onWord: renderWord,
+        onStateChange: updateStateUI,
+        onComplete
+      });
+    } else {
+      player.destroy();
+      player = createRsvpPlayer(words, {
+        wpm: wpm,
+        onWord: renderWord,
+        onStateChange: updateStateUI,
+        onComplete
+      });
+    }
+
+    if (words.length > 0) {
+      renderWord(words[0]);
+      updateStateUI({ isPlaying: false, index: 0, total: words.length });
+    }
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    
+    els.overlay.classList.remove("hidden");
+    requestAnimationFrame(() => {
+      if (!prefersReducedMotion) {
+        els.overlay.classList.remove("opacity-0");
+        els.overlay.classList.add("opacity-100");
+      } else {
+        els.overlay.classList.remove("opacity-0", "transition-opacity", "duration-300");
+        els.overlay.classList.add("opacity-100");
+      }
+    });
+
+    els.playPauseBtn.focus();
+    document.addEventListener("keydown", handleOverlayKeydown);
+    document.body.style.overflow = "hidden";
+
+    // Auto-start
+    player.play();
+  }
+
+  function closeOverlay() {
+    if (!els.overlay || !player) return;
+
+    player.pause();
+    document.removeEventListener("keydown", handleOverlayKeydown);
+    
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    
+    if (!prefersReducedMotion) {
+      els.overlay.classList.remove("opacity-100");
+      els.overlay.classList.add("opacity-0");
+      
+      setTimeout(() => {
+        els.overlay.classList.add("hidden");
+        // Restore FAB
+        els.fab.classList.remove("hidden");
+        els.fab.classList.add("flex");
+        els.fab.focus();
+      }, 300);
+    } else {
+      els.overlay.classList.remove("opacity-100");
+      els.overlay.classList.add("hidden");
+      // Restore FAB
+      els.fab.classList.remove("hidden");
+      els.fab.classList.add("flex");
+      els.fab.focus();
+    }
+
+    document.body.style.overflow = "";
+  }
+
+  function handleOverlayKeydown(e: KeyboardEvent) {
+    if (els.overlay.classList.contains("hidden") || !player) return;
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeOverlay();
+    } else if (e.key === " " || e.code === "Space") {
+      if (document.activeElement?.tagName !== "BUTTON" && document.activeElement?.tagName !== "INPUT") {
+        e.preventDefault();
+      } else if (document.activeElement?.tagName === "BUTTON") {
+         return; 
+      }
+      player.toggle();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      player.back(10);
+    }
+  }
+
+  function onProgressClick(e: MouseEvent) {
+    if (!player || words.length === 0) return;
+    const rect = els.progressContainer.getBoundingClientRect();
+    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const percentage = x / rect.width;
+    const targetIndex = Math.floor(percentage * words.length);
+    player.seek(targetIndex);
+  }
+
+  // --- Setup & Teardown ---
+
+  function setupListeners() {
+    // Popover
+    els.fab.addEventListener("click", togglePopover);
+    els.popoverCloseBtn.addEventListener("click", closePopover);
+    els.popoverWpmInput.addEventListener("input", onPopoverWpmChange);
+    els.popoverStartBtn.addEventListener("click", openOverlayAndPlay);
+
+    // Overlay
+    els.overlayCloseBtn.addEventListener("click", closeOverlay);
+    els.playPauseBtn.addEventListener("click", () => player?.toggle());
+    els.backBtn.addEventListener("click", () => player?.back(10));
+    els.overlayWpmInput.addEventListener("input", onOverlayWpmChange);
+    els.progressContainer.addEventListener("click", onProgressClick);
+  }
+
+  // Show the popover once ever, so visitors discover the feature without it
+  // becoming a cookie-banner-style interruption on every post
+  const INTRO_KEY = "rsvp-intro-seen";
+
+  function maybeShowIntro() {
+    if (localStorage.getItem(INTRO_KEY)) return;
+    localStorage.setItem(INTRO_KEY, "1");
+    // Delay so it doesn't compete with the page settling in. Focus stays put:
+    // unsolicited UI must not steal it (a11y).
+    setTimeout(() => openPopover({ focus: false }), 800);
+  }
+
+  function mount() {
+    const article = document.getElementById("article");
+    if (!article) return; // Only show on posts with an article
+
+    initElements();
+    if (!els.fab) return;
+
+    els.fab.classList.remove("hidden");
+    els.fab.classList.add("flex");
+
+    setupListeners();
+    maybeShowIntro();
+  }
+
+  function cleanup() {
+    if (player) {
+      player.destroy();
+      player = null;
+    }
+    document.body.style.overflow = "";
+    
+    // Explicitly remove global event listeners in case unmounted while open
+    document.removeEventListener("keydown", handlePopoverKeydown);
+    document.removeEventListener("pointerdown", handleOutsideClick);
+    document.removeEventListener("keydown", handleOverlayKeydown);
+  }
+
+  document.addEventListener("astro:page-load", mount);
+  document.addEventListener("astro:before-swap", cleanup);
+</script>

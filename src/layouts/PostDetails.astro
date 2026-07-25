@@ -9,6 +9,7 @@ import ShareLinks from "@/components/ShareLinks.astro";
 import Breadcrumb from "@/components/Breadcrumb.astro";
 import BackToTopButton from "@/components/BackToTopButton.astro";
 import GalleryEmbed from "@/components/GalleryEmbed.astro";
+import SpeedReader from "@/components/SpeedReader.astro";
 import { getPath } from "@/utils/getPath";
 import { slugifyStr } from "@/utils/slugify";
 import { getReadingTime } from "@/utils/readingTime";
@@ -189,6 +190,8 @@ const nextPost =
             </div>
           )}
 
+
+
           <!-- Edit post -->
           <EditPost
             {hideEditPost}
@@ -323,6 +326,7 @@ const nextPost =
     </div>
   </main>
   <BackToTopButton />
+  <SpeedReader />
   <Footer />
 </Layout>
 
