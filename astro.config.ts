@@ -24,7 +24,9 @@ export default defineConfig({
       extendMarkdownConfig: true,
     }),
     sitemap({
-      filter: page => SITE.showArchives || !page.endsWith("/archives"),
+      filter: page =>
+        (SITE.showArchives || !page.endsWith("/archives")) &&
+        !page.includes("/labs/"),
     }),
   ],
   markdown: {

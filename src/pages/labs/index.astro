@@ -1,0 +1,98 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import Breadcrumb from "@/components/Breadcrumb.astro";
+import { SITE } from "@/config";
+
+const labs = [
+  {
+    href: "/labs/llm-canary",
+    title: "LLM Canary Lab",
+    description:
+      "A consented, publicly disclosed experiment measuring which AI crawlers and assistants ingest instructions embedded in a page, and which embedding technique survives text extraction.",
+  },
+];
+---
+
+<Layout
+  title={`Labs | ${SITE.title}`}
+  description="Open, labeled experiments run on this site — mostly around AI security and web crawling."
+  noindex
+>
+  <Header />
+  <Breadcrumb />
+  <main id="main-content" class="app-layout pb-16">
+    <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">
+      <span class="glow-text">Labs</span>
+    </h1>
+    <p class="mt-3 max-w-lg text-foreground/70 italic">
+      Open, disclosed experiments — not polished write-ups, just the raw thing
+      being measured.
+    </p>
+
+    <ul class="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2" role="list">
+      {
+        labs.map(lab => (
+          <li class="lab-card">
+            <a href={lab.href} class="lab-card-link">
+              <h2 class="lab-card-title">{lab.title}</h2>
+              <p class="lab-card-desc">{lab.description}</p>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </main>
+  <Footer />
+</Layout>
+
+<style>
+  .glow-text {
+    background: linear-gradient(
+      135deg,
+      var(--color-foreground),
+      var(--color-accent)
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(
+      0 0 25px color-mix(in srgb, var(--color-accent) 25%, transparent)
+    );
+  }
+
+  .lab-card {
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
+    background: color-mix(in srgb, var(--foreground) 2%, var(--background));
+    transition:
+      border-color 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .lab-card:hover {
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    transform: translateY(-2px);
+  }
+
+  .lab-card-link {
+    display: block;
+    padding: 1.25rem;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .lab-card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  .lab-card-desc {
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: color-mix(in srgb, var(--foreground) 70%, transparent);
+  }
+</style>

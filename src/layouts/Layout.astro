@@ -20,6 +20,7 @@ type Props = {
   prev?: string;
   next?: string;
   structuredData?: any;
+  noindex?: boolean;
 };
 
 const {
@@ -35,6 +36,7 @@ const {
   prev,
   next,
   structuredData: structuredDataProp,
+  noindex = false,
 } = Astro.props;
 
 // Always build canonical from SITE.website (production URL), never localhost.
@@ -120,6 +122,7 @@ const showGrain = SITE.backdropEffects.grain;
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href={canonicalURL} />
     <meta name="generator" content={Astro.generator} />
+    {noindex && <meta name="robots" content="noindex,follow" />}
 
     <!-- Relational Pagination Links -->
     {prev && <link rel="prev" href={prev} />}
