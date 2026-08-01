@@ -30,3 +30,6 @@ pnpm-debug.log*
 
 public/pagefind
 .vercel
+
+# research and strategy artifacts (local only, not part of the site)
+docs/
