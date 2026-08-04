@@ -1,12 +1,12 @@
 ---
-title: "Stealth DCSync, an autopsy: the DC checks attributes, not flags"
+title: "Stealth DCSync, an autopsy: no flag combination got me usable secrets without Get-Changes-All"
 pubDatetime: 2026-08-02T20:00:00Z
-description: "I tested five MS-DRSR flag and EXOP manipulations meant to perform a DCSync without triggering the DS-Replication-Get-Changes-All GUID in Event 4662. The telemetry was identical on Server 2016 and Server 2025, the two endpoints of a nine-year span. The DC's permission check is driven by the requested attributes, not by request flags."
+description: "I tested five MS-DRSR flag and EXOP manipulations meant to perform a DCSync without triggering the DS-Replication-Get-Changes-All GUID in Event 4662. Every variant that returned usable credential material also logged the GUID, identically on Server 2016 and Server 2025. One variant contradicts the MS-DRSR specification and I could not resolve it."
 tags: ["active-directory", "red-team", "detection-engineering", "impacket"]
 hideEditPost: true
 ---
 
-**Summary.** Every SIEM rule for DCSync keys on Event 4662 carrying the GUID `1131f6ad-9c07-11d1-f79f-00c04fc2dcd2` (DS-Replication-Get-Changes-All). I wanted to know if manipulating the MS-DRSR request itself, through `ulFlags`, `ulExtendedOp`, or a filtered-set-only account, could pull credential material without that GUID appearing. I ran five request variants against a Server 2016 DC and repeated them against a Server 2025 DC (build 26100). Four variants returned the correct NT hash; the fifth failed on session key derivation, for reasons unrelated to detection. What matters: all five generated the exact same `1131f6ad` event, on both versions. The reason is undocumented behavior I mapped empirically: the DC's permission check is driven by the attributes in `pPartialAttrSet`, not by any flag in the request. If `unicodePwd` is in the attribute set, the DC checks and logs Get-Changes-All no matter what the flags say. The permission path is closed too: a delegated account holding only Get-Changes-In-Filtered-Set gets ACCESS_DENIED when it asks for secrets, and the filtered right is never even evaluated. Detection rules targeting that GUID hold.
+**Summary.** Every SIEM rule for DCSync keys on Event 4662 carrying the GUID `1131f6ad-9c07-11d1-f79f-00c04fc2dcd2` (DS-Replication-Get-Changes-All). I wanted to know if manipulating the MS-DRSR request itself, through `ulFlags`, `ulExtendedOp`, or a filtered-set-only account, could pull credential material without that GUID appearing. I ran five request variants against a Server 2016 DC and repeated them against a Server 2025 DC (build 26100). Four returned the correct NT hash and all four logged `1131f6ad`, identically on both versions. The fifth, using `DRS_SPECIAL_SECRET_PROCESSING`, returned no usable secret at all — which is what [MS-DRSR] says should happen — yet still produced the GUID, and I could not determine why. So the claim I will defend is narrow: **of the request-shaping paths that actually yield credential material, none avoided the Get-Changes-All check or its telemetry.** The permission path is closed too: a delegated account holding only Get-Changes-In-Filtered-Set gets ACCESS_DENIED when it asks for secrets, and the filtered right is never evaluated. Detection rules targeting that GUID hold.
 
 ## The idea
 
@@ -48,7 +48,17 @@ After each run I pulled the Security log from the DC with `wevtutil` filtered on
 
 ## Five variants, one GUID
 
-Every variant succeeded as an attack in the sense that mattered for the question. Four of five returned the correct NT hash for the test user on both DCs. The fifth, V3 with `DRS_SPECIAL_SECRET_PROCESSING`, returned `31d6cfe0d16ae931b73c59d7e0c089c0`, the NT hash of an empty password. The most likely explanation is that the flag changes session key derivation and impacket's default attribute set cannot decrypt the response; I did not confirm whether the attribute comes back garbled or absent. Same behavior on 2016 and 2025. That is a flag/crypto interaction, not a detection issue, and the companion results mark V3's hash column as NO for exactly this reason.
+Four of five returned the correct NT hash for the test user on both DCs. V3, with `DRS_SPECIAL_SECRET_PROCESSING`, returned `31d6cfe0d16ae931b73c59d7e0c089c0` — the NT hash of an empty password — and that is the specified behavior, not a failure. [MS-DRSR] 4.1.10.5.8 `AddObjToResponse` is explicit:
+
+```
+if AmILHServer() and DRS_SPECIAL_SECRET_PROCESSING in ulFlags and
+    IsSecretAttribute(attribute) then
+   /* secret attribute, send a null value */
+```
+
+The DC deliberately sent nothing, and impacket hashed the absence. V3 did not succeed as an attack; it is the protocol working as designed. Same on 2016 and 2025.
+
+One loose end I am recording rather than resolving: this holds for the minimal two-attribute set the harness sends. My 2016 notes record V3 returning the *correct* hash when impacket's full ten-attribute set is used, which the specification does not predict — `IsRevealSecretRequest` short-circuits on the flag before it ever inspects the attribute set. Either that observation is wrong or something else is going on, and I have not re-run it.
 
 And every variant produced the same telemetry. V2, with no `DRS_WRIT_REP`, generated this on the 2025 DC:
 
@@ -99,7 +109,28 @@ Put the three experiments together and the mechanism is visible. When `DRSGetNCC
 
 Dimension C adds the sharpest detail: the filtered right is not an entry in that table for secret attributes at all. An account holding `89e95b76` and nothing else is not told "filtered replication is fine, secrets are not"; the DC simply never evaluates its filtered right, and the request dies with ACCESS_DENIED as if the right did not exist.
 
-The authorization layer sits above the protocol flag layer and never consults it. That is why V1 through V5 are indistinguishable in the Security log: the flags change what the DC does on the wire, but the attribute set determines what the DC checks. This behavior is not documented in [MS-DRSR] or [MS-ADTS]; I mapped it empirically, and the reproducible harness exists so anyone can dispute me with data.
+This is documented, and I should have found it before running anything. [MS-DRSR] 5.107 `IsRevealSecretRequest` spells out the decision, and it consults flags and extended operations alongside attributes:
+
+```
+if ({DRS_SPECIAL_SECRET_PROCESSING} ∩ msgIn.ulFlags) then
+  return false
+endif
+if (msgIn.ulExtendedOp = EXOP_REPL_SECRETS or msgIn.pAttributeSet = null) then
+  return true
+endif
+```
+
+So "attributes, not flags" is wrong as a mechanism. The accurate reading is that a secret attribute in the set is *one* of several triggers, and the two knobs I expected to suppress the check do not: `DRS_WRIT_REP` is only consulted when `AmILHServer()` is false, which means pre-2008 servers, so removing it on 2016 or 2025 changes nothing — exactly what V2 showed. And `EXOP_REPL_SECRETS` returns true outright, so V4 and V5 were always going to check. My measurements were right; my explanation of them was not.
+
+## The variant that contradicts the spec
+
+V3 is the exception, and it is the part of this work I cannot close.
+
+`IsRevealSecretRequest` returns **false** when `DRS_SPECIAL_SECRET_PROCESSING` is set. By the specification, the DC should therefore not treat V3 as a secret request and should not check Get-Changes-All. It logged `1131f6ad` anyway, on both DCs.
+
+Three explanations fit, and I cannot separate them with the data I collected. The event may have come from a different DRS call in the same `secretsdump` run — the tool issues several, and a LogonID isolates the logon session, not individual RPC calls, so my per-variant isolation is not fine-grained enough to attribute a single 4662 to a single `DRSGetNCChanges`. The implementation may diverge from the specification. Or the DC may run an audited access check that the published routine does not represent.
+
+Settling it needs per-call correlation: raw EVTX rather than filtered `wevtutil` output, an RPC capture, and a count of `DRSGetNCChanges` calls per run matched against events. I have not done that. If it turns out the implementation really does check Get-Changes-All where the spec says it should not, that is a more interesting result than anything else in this post.
 
 ## Two endpoints, nine years apart, zero drift
 
@@ -141,6 +172,10 @@ Honest limitations: my tests ran with auditing fully enabled and known-good SACL
 ## References
 
 - [MS-DRSR]: Directory Replication Service Remote Protocol, sections 4.1.10.2, 5.41, 5.145
+- [MS-DRSR] 5.107, [`IsRevealSecretRequest`](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/e72853a1-9b9c-4931-b76a-a417581890f7)
+- [MS-DRSR] 4.1.10.5.8, [`AddObjToResponse`](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/55f1585c-46c1-4047-8cb0-040335f7264f)
+- [MS-DRSR] 5.106, [`IsGetNCChangesPermissionGranted`](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/15bbda52-7742-4ce3-9327-018647b0fc26)
+- [MS-DRSR], [`IsSecretAttribute`](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/294168d9-81bf-461b-91d7-95bd8a985737)
 - [MS-ADTS]: Active Directory Technical Specification, `dSHeuristics` (6.1.1.2.4.1.2)
 - Microsoft documentation, Event ID 4662
 - Fortra/impacket: `secretsdump.py`, `drsuapi.py`
